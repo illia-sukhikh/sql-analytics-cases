@@ -1,0 +1,13 @@
+-- Case 6. Seller Pareto
+--
+-- Business question: Do 20% of sellers make 80% of the revenue,
+--                    and how risky is that concentration?
+-- Expected output:   seller_rank_pct | cum_revenue_share_pct
+--                    + top 10 sellers with state, revenue share and late-shipping rate
+-- Definitions:       revenue = SUM(order_items.price) for delivered orders;
+--                    late shipping = orders.order_delivered_carrier_date > order_items.shipping_limit_date.
+-- Hints:             ROW_NUMBER() and COUNT(*) OVER () for the rank percentile;
+--                    SUM(...) OVER (ORDER BY revenue DESC) for the cumulative share.
+-- Chart:             Pareto curve -> images/06_pareto.png
+
+-- Your query here

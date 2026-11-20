@@ -1,0 +1,14 @@
+-- Case 5. ABC/XYZ analysis of product categories
+--
+-- Business question: Which categories form the revenue core (A),
+--                    and which have unstable demand (Z)?
+-- Expected output:   category | revenue | revenue_share_pct | cum_share_pct | abc | cv | xyz
+-- Definitions:       ABC by cumulative revenue share: A <= 80%, B <= 95%, C = the rest;
+--                    XYZ by coefficient of variation (CV) of monthly revenue:
+--                    X < 0.25, Y < 0.5, Z >= 0.5 (state your thresholds in the README).
+-- Hints:             English category names via category_translation;
+--                    SUM(...) OVER (ORDER BY revenue DESC) for the cumulative share;
+--                    STDDEV_POP() / AVG() of monthly revenue per category for the CV.
+-- Chart:             ABC x XYZ matrix with revenue -> images/05_abc_xyz.png
+
+-- Your query here

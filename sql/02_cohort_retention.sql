@@ -1,0 +1,14 @@
+-- Case 2. Cohort retention
+--
+-- Business question: What share of customers buys again 1, 2, 3 ... months
+--                    after their first purchase?
+-- Expected output:   cohort_month | months_since_first | customers | retention_pct
+-- Definitions:       a customer = customers.customer_unique_id
+--                    (customer_id changes with every order!);
+--                    cohort = month of the customer's first delivered order.
+-- Hints:             MIN() OVER (PARTITION BY customer) for the first order;
+--                    month difference = (year * 12 + month) of the order minus the same for the cohort.
+-- Note:              expect very low repeat rates; explaining why is part of the insight.
+-- Chart:             heatmap cohort x month -> images/02_retention.png
+
+-- Your query here

@@ -1,0 +1,12 @@
+-- Case 1. Revenue dynamics
+--
+-- Business question: How did revenue, number of orders and average order value (AOV)
+--                    develop month by month, and where are the spikes?
+-- Expected output:   month | orders | revenue | aov | revenue_mom_pct
+-- Definitions:       count delivered orders only (orders.order_status = 'delivered');
+--                    revenue = SUM(order_items.price), without freight.
+-- Hints:             date_trunc('month', order_purchase_timestamp); one CTE per step;
+--                    LAG() OVER (ORDER BY month) for month-over-month growth.
+-- Chart:             line chart of revenue + bars of orders -> images/01_revenue.png
+
+-- Your query here

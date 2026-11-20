@@ -1,0 +1,13 @@
+-- Case 3. RFM segmentation
+--
+-- Business question: Which customer segments generate most of the revenue,
+--                    and whom should marketing target?
+-- Expected output:   segment | customers | revenue | revenue_share_pct | avg_monetary
+-- Definitions:       reference date = latest order date + 1 day; recency in days;
+--                    frequency = number of delivered orders per customer_unique_id;
+--                    monetary = SUM(order_payments.payment_value).
+-- Hints:             NTILE(5) for R, F and M scores. Frequency is almost always 1 here,
+--                    so consider an R + M segmentation and explain the choice in the README.
+-- Chart:             bar chart of revenue share by segment -> images/03_rfm.png
+
+-- Your query here

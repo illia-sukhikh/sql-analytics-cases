@@ -1,0 +1,13 @@
+-- Case 4. Delivery quality vs. review score
+--
+-- Business question: How much does a late delivery lower the review score,
+--                    and in which states is the problem worst?
+-- Expected output:   delivery_status (on time / late) | orders | avg_review_score | share_1_2_stars_pct
+--                    + a second query by customers.customer_state
+-- Definitions:       late = order_delivered_customer_date > order_estimated_delivery_date;
+--                    delivered orders only; one review per order (deduplicate if needed).
+-- Hints:             CASE WHEN inside AVG / COUNT, or COUNT(*) FILTER (WHERE ...);
+--                    JOIN orders -> order_reviews -> customers.
+-- Chart:             average score on time vs. late -> images/04_delivery.png
+
+-- Your query here
