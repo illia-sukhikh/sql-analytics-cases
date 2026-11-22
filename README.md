@@ -68,6 +68,7 @@ sql-analytics-cases/
 ├── requirements.txt
 └── README.md
 ```
+Status: work in progress, cases 1–6 by December 2026
 
 ## Author
 
