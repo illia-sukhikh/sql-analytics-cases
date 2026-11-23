@@ -1,0 +1,142 @@
+"""Build the README charts from the case queries.
+
+Usage (from the project root, with the virtual environment active):
+    python scripts/charts.py
+
+Every chart runs the SQL file of its case, so the picture always matches the published query.
+"""
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
+import pandas as pd
+from dotenv import load_dotenv
+from matplotlib.ticker import FuncFormatter
+from sqlalchemy import create_engine, text
+
+plt.switch_backend("agg")  # files only, no windows
+
+PROJECT_DIR = Path(__file__).resolve().parents[1]
+SQL_DIR = PROJECT_DIR / "sql"
+IMG_DIR = PROJECT_DIR / "images"
+
+INK = "#1F2933"      # titles
+MUTED = "#616E7C"    # subtitles, axes, notes
+GRID = "#E4E7EB"     # grid lines
+BARS = "#CBD2D9"     # context series
+ACCENT = "#2563EB"   # the main metric
+
+plt.rcParams.update({
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Segoe UI", "DejaVu Sans"],  # Segoe UI on Windows, DejaVu Sans elsewhere
+    "font.size": 10,
+    "axes.labelcolor": MUTED,
+    "xtick.color": MUTED,
+    "ytick.color": MUTED,
+})
+
+
+def run_sql(engine, file_name: str, date_cols: list[str] | None = None) -> pd.DataFrame:
+    """Run a case query from sql/ and return the result as a DataFrame."""
+    query = (SQL_DIR / file_name).read_text(encoding="utf-8-sig")  # -sig: also reads files saved with a BOM
+    with engine.connect() as conn:
+        return pd.read_sql(text(query), conn, parse_dates=date_cols)
+
+
+def short_money(value: float, _pos=None) -> str:
+    if value >= 1_000_000:
+        return f"{value / 1_000_000:.2f}".rstrip("0").rstrip(".") + "M"  # 1M, 1.25M, 1.5M
+    if value >= 1_000:
+        return f"{value / 1_000:.0f}K"
+    return f"{value:.0f}"
+
+
+def clean_axes(*axes) -> None:
+    for ax in axes:
+        for side in ("top", "left", "right"):
+            ax.spines[side].set_visible(False)
+        ax.spines["bottom"].set_color(GRID)
+        ax.tick_params(length=0)
+
+
+def add_titles(fig, title: str, subtitle: str, source: str) -> None:
+    fig.text(0.02, 0.96, title, fontsize=14, fontweight="bold", color=INK, va="top")
+    fig.text(0.02, 0.905, subtitle, fontsize=10, color=MUTED, va="top")
+    fig.text(0.02, 0.02, source, fontsize=8, color=MUTED, va="bottom")
+
+
+def save(fig, file_name: str) -> Path:
+    path = IMG_DIR / file_name
+    fig.savefig(path, dpi=200, facecolor="white")  # white, not transparent: readable in GitHub dark mode
+    plt.close(fig)
+    return path
+
+
+# ---------- Case 1. Revenue dynamics ----------
+# Replace with your finding once you have looked at the numbers.
+TITLE_01 = "Revenue grew 8× in a year, then plateaued at about BRL 0.9M a month"
+# Optional: mark the spike you found in the daily drill-down, e.g. ("2017-11-01", "your label").
+SPIKE_01: tuple[str, str] | None = ("2017-11-01", "Black Friday, 24 Nov: 1,147 orders in one day")
+
+
+def chart_revenue(engine) -> Path:
+    df = run_sql(engine, "01_revenue_dynamics.sql", date_cols=["month"])
+    df[["orders", "revenue"]] = df[["orders", "revenue"]].astype(float)
+
+    fig, ax_rev = plt.subplots(figsize=(10, 5.6))
+    ax_orders = ax_rev.twinx()
+    ax_rev.set_zorder(ax_orders.get_zorder() + 1)  # line above the bars
+    ax_rev.patch.set_visible(False)
+
+    bars = ax_orders.bar(df["month"], df["orders"], width=20, color=BARS, label="Orders (right axis)")
+    (line,) = ax_rev.plot(df["month"], df["revenue"], color=ACCENT, linewidth=2.5,
+                          marker="o", markersize=4, label="Revenue, BRL (left axis)")
+
+    ax_rev.set_ylim(bottom=0)      # both axes start at zero, otherwise the chart exaggerates
+    ax_orders.set_ylim(bottom=0)
+    ax_rev.yaxis.set_major_formatter(FuncFormatter(short_money))
+    ax_orders.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}"))
+    ax_rev.set_ylabel("Revenue, BRL")
+    ax_orders.set_ylabel("Orders")
+    ax_rev.xaxis.set_major_locator(mdates.MonthLocator(bymonth=[1, 4, 7, 10]))
+    ax_rev.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
+    ax_rev.grid(axis="y", color=GRID, linewidth=0.8)
+    clean_axes(ax_rev, ax_orders)
+
+    if SPIKE_01:
+        month, label = SPIKE_01
+        point = df.loc[df["month"] == pd.Timestamp(month)].iloc[0]
+        ax_rev.annotate(label, xy=(point["month"], point["revenue"]), xytext=(-120, 14),
+                        textcoords="offset points", color=INK, fontsize=9,
+                        arrowprops={"arrowstyle": "-", "color": MUTED, "linewidth": 0.8})
+
+    ax_rev.legend(handles=[line, bars], loc="upper left", frameon=False)
+    add_titles(fig, TITLE_01,
+               "Delivered orders by purchase month · revenue = item price, excl. freight",
+               "Source: Olist public dataset (Kaggle) · query: sql/01_revenue_dynamics.sql")
+    fig.subplots_adjust(left=0.08, right=0.92, top=0.83, bottom=0.12)
+    return save(fig, "01_revenue.png")
+
+
+CHARTS = [chart_revenue]  # add one function per case as you go
+
+
+def main() -> int:
+    load_dotenv(PROJECT_DIR / ".env")
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        print("DATABASE_URL is not set. Copy .env.example to .env and fill it in.")
+        return 1
+    IMG_DIR.mkdir(exist_ok=True)
+    engine = create_engine(database_url)
+    for build in CHARTS:
+        print(f"saved {build(engine).relative_to(PROJECT_DIR)}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

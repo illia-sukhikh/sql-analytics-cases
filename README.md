@@ -12,7 +12,7 @@ I analyze it the way I would for a commercial team: every case starts with a bus
 
 | # | Business question | Techniques | Query | Status |
 | --- | --- | --- | --- | --- |
-| 1 | How did revenue, orders and average order value develop month by month? | CTE, `date_trunc`, `LAG` | [01](sql/01_revenue_dynamics.sql) | to do |
+| 1 | How did revenue, orders and average order value develop month by month? | CTE, `date_trunc`, `LAG` | [01](sql/01_revenue_dynamics.sql) | done |
 | 2 | Do customers come back after their first purchase? | Cohorts, retention matrix | [02](sql/02_cohort_retention.sql) | to do |
 | 3 | Which customer segments generate the revenue? | RFM, `NTILE` | [03](sql/03_rfm_segmentation.sql) | to do |
 | 4 | How much does a late delivery hurt the review score? | Joins, conditional aggregation | [04](sql/04_delivery_vs_reviews.sql) | to do |
@@ -21,15 +21,13 @@ I analyze it the way I would for a commercial team: every case starts with a bus
 
 ## Results
 
-_Fill in after each case: one chart, two or three sentences with numbers, one recommendation._
-
 ### 1. Revenue dynamics
 
 ![Revenue dynamics](images/01_revenue.png)
 
-**Insight:** …
+**Insight:** Monthly revenue grew 8× in a year, from BRL 112K in January 2017 to BRL 925K in January 2018, and then plateaued at about BRL 0.9M; in June–August 2018 it was 12% below March–May. The growth came from more orders, not bigger baskets: the average order value stayed between BRL 124 and BRL 149. The record month was November 2017 (+52% month over month), with a single-day peak on Black Friday (24 November): 1,147 orders, more than six times a typical November day.
 
-**Recommendation:** …
+**Recommendation:** Order volume stopped growing in 2018 and the average order value never grew, so the next lever is basket size and repeat purchases: test bundles and a free-shipping threshold to lift the order value, and check in case 2 whether customers come back.
 
 ## Data
 
@@ -45,11 +43,16 @@ Brazilian E-Commerce Public Dataset by Olist (Kaggle): 9 CSV files, ~100k orders
 ```bash
 python -m venv .venv
 .venv\Scripts\activate          # Windows
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 python scripts/load_olist.py
 ```
 
 5. Run `sql/00_check_load.sql` to check the row counts, then the case queries.
+6. Build the charts for this README:
+
+```bash
+python scripts/charts.py
+```
 
 ## Project structure
 
@@ -58,8 +61,9 @@ sql-analytics-cases/
 ├── data/
 │   └── README.md          # how to download the dataset
 ├── images/                # charts used in this README
-├── notebooks/             # charts and exploration
+├── notebooks/             # exploration
 ├── scripts/
+│   ├── charts.py          # builds the README charts from the case queries
 │   └── load_olist.py      # loads the CSV files into PostgreSQL
 ├── sql/
 │   ├── 00_check_load.sql
@@ -68,7 +72,8 @@ sql-analytics-cases/
 ├── requirements.txt
 └── README.md
 ```
-Status: work in progress, cases 1–6 by December 2026
+
+Status: case 1 of 6 done, cases 2–6 by December 2026
 
 ## Author
 
