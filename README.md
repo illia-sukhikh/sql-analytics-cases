@@ -13,7 +13,7 @@ I analyze it the way I would for a commercial team: every case starts with a bus
 | # | Business question | Techniques | Query | Status |
 | --- | --- | --- | --- | --- |
 | 1 | How did revenue, orders and average order value develop month by month? | CTE, `date_trunc`, `LAG` | [01](sql/01_revenue_dynamics.sql) | done |
-| 2 | Do customers come back after their first purchase? | Cohorts, retention matrix | [02](sql/02_cohort_retention.sql) | to do |
+| 2 | Do customers come back after their first purchase? | Cohorts, retention matrix, `generate_series` | [02](sql/02_cohort_retention.sql) | done |
 | 3 | Which customer segments generate the revenue? | RFM, `NTILE` | [03](sql/03_rfm_segmentation.sql) | to do |
 | 4 | How much does a late delivery hurt the review score? | Joins, conditional aggregation | [04](sql/04_delivery_vs_reviews.sql) | to do |
 | 5 | Which categories form the revenue core, and which are unstable? | ABC/XYZ, cumulative share, coefficient of variation | [05](sql/05_abc_xyz_categories.sql) | to do |
@@ -28,6 +28,14 @@ I analyze it the way I would for a commercial team: every case starts with a bus
 **Insight:** Monthly revenue grew 8× in a year, from BRL 112K in January 2017 to BRL 925K in January 2018, and then plateaued at about BRL 0.9M; in June–August 2018 it was 12% below March–May. The growth came from more orders, not bigger baskets: the average order value stayed between BRL 124 and BRL 149. The record month was November 2017 (+52% month over month), with a single-day peak on Black Friday (24 November): 1,147 orders, more than six times a typical November day.
 
 **Recommendation:** Order volume stopped growing in 2018 and the average order value never grew, so the next lever is basket size and repeat purchases: test bundles and a free-shipping threshold to lift the order value, and check in case 2 whether customers come back.
+
+### 2. Cohort retention
+
+![Cohort retention](images/02_retention.png)
+
+**Insight:** 97% of customers bought only once (90,557 of 93,358). In no cohort did more than 0.72% of customers buy again in any later month; even in the oldest cohort (January 2017) only 20 of 717 customers (2.8%) came back within a year. Customers who returned in a later month brought just 1.8% of revenue, so the growth in case 1 came almost entirely from new customers.
+
+**Recommendation:** Growth depends on new customers, and their number stopped growing in 2018 (case 1), so test a second-purchase incentive, such as a voucher sent with the delivery, as an A/B test against a control group, with month-1 retention as the success metric.
 
 ## Data
 
@@ -73,7 +81,7 @@ sql-analytics-cases/
 └── README.md
 ```
 
-Status: case 1 of 6 done, cases 2–6 by December 2026
+Status: case 2 of 6 done, cases 3–6 by December 2026
 
 ## Author
 

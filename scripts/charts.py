@@ -122,7 +122,55 @@ def chart_revenue(engine) -> Path:
     return save(fig, "01_revenue.png")
 
 
-CHARTS = [chart_revenue]  # add one function per case as you go
+# ---------- Case 2. Cohort retention ----------
+TITLE_02 = "Fewer than 1% of customers buy again in any month after the first"
+
+
+def chart_retention(engine) -> Path:
+    df = run_sql(engine, "02_cohort_retention.sql", date_cols=["cohort_month"])
+    df["retention_pct"] = df["retention_pct"].astype(float)
+
+    sizes = df.loc[df["months_since_first"] == 0].set_index("cohort_month")["customers"]
+    grid = (df.loc[df["months_since_first"] > 0]
+              .pivot(index="cohort_month", columns="months_since_first", values="retention_pct")
+              .reindex(index=sizes.index, columns=range(1, 13)))  # empty cell = not observed yet
+    top_value = grid.max().max()
+
+    fig, ax = plt.subplots(figsize=(10, 7.6))
+    cmap = plt.get_cmap("Blues").with_extremes(bad="white")
+    heat = ax.imshow(grid.to_numpy(dtype=float), cmap=cmap, vmin=0, vmax=top_value, aspect="auto")
+
+    for row, cohort in enumerate(grid.index):          # the value in every observed cell
+        for col, month in enumerate(grid.columns):
+            value = grid.loc[cohort, month]
+            if pd.notna(value):
+                ax.text(col, row, f"{value:.2f}", ha="center", va="center", fontsize=7.5,
+                        color="white" if value > 0.6 * top_value else INK)
+
+    ax.set_xticks(range(len(grid.columns)), labels=grid.columns)
+    ax.set_yticks(range(len(grid.index)),
+                  labels=[f"{month:%b %Y} · {sizes[month]:,}" for month in grid.index])
+    ax.set_xticks([x + 0.5 for x in range(len(grid.columns) - 1)], minor=True)
+    ax.set_yticks([y + 0.5 for y in range(len(grid.index) - 1)], minor=True)
+    ax.grid(which="minor", color="white", linewidth=1.5)   # white lines between the cells
+    ax.tick_params(which="both", length=0)
+    ax.set_xlabel("Months after the first purchase")
+    ax.set_ylabel("Cohort (month of the first purchase) · customers")
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+    bar = fig.colorbar(heat, ax=ax, shrink=0.6, pad=0.02)
+    bar.set_label("Bought again, % of the cohort", color=MUTED)
+    bar.outline.set_visible(False)
+    bar.ax.tick_params(length=0)
+
+    add_titles(fig, TITLE_02,
+               "Share of each cohort with a delivered order N months later · blank = not observed yet",
+               "Source: Olist public dataset (Kaggle) · query: sql/02_cohort_retention.sql")
+    fig.subplots_adjust(left=0.2, right=0.98, top=0.86, bottom=0.1)
+    return save(fig, "02_retention.png")
+
+CHARTS = [chart_revenue, chart_retention]  # add one function per case as you go
 
 
 def main() -> int:
