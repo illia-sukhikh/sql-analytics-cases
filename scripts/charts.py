@@ -170,7 +170,50 @@ def chart_retention(engine) -> Path:
     fig.subplots_adjust(left=0.2, right=0.98, top=0.86, bottom=0.1)
     return save(fig, "02_retention.png")
 
-CHARTS = [chart_revenue, chart_retention]  # add one function per case as you go
+# ---------- Case 3. RFM segmentation ----------
+TITLE_03 = "One third of customers (VIP and Sleeping) bring 60% of all payments"
+SEGMENT_NOTES_03 = {                   # what each segment means, shown under its name
+    "VIP": "recent, high spend",
+    "Sleeping": "long ago, high spend",
+    "Need attention": "in between",
+    "New": "recent, low spend",
+    "Lost": "long ago, low spend",
+}
+
+
+def chart_rfm(engine) -> Path:
+    df = run_sql(engine, "03_rfm_segmentation.sql")
+    shares = ["customers_share_pct", "revenue_share_pct"]
+    df[shares] = df[shares].astype(float)
+    df = df.iloc[::-1].reset_index(drop=True)          # the largest share of payments on top
+
+    fig, ax = plt.subplots(figsize=(10, 5.8))
+    rows, height = list(range(len(df))), 0.38
+    ax.barh([y + height / 2 for y in rows], df["customers_share_pct"], height=height,
+            color=BARS, label="Share of customers")
+    ax.barh([y - height / 2 for y in rows], df["revenue_share_pct"], height=height,
+            color=ACCENT, label="Share of payments")
+    for y, (customers, payments) in enumerate(zip(df["customers_share_pct"], df["revenue_share_pct"])):
+        ax.text(customers + 0.5, y + height / 2, f"{customers:.1f}%", va="center", fontsize=9, color=MUTED)
+        ax.text(payments + 0.5, y - height / 2, f"{payments:.1f}%", va="center", fontsize=9,
+                color=INK, fontweight="bold")
+
+    ax.set_yticks(rows, labels=[f"{name}\n{SEGMENT_NOTES_03.get(name, '')}" for name in df["segment"]])
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:.0f}%"))
+    ax.set_xlim(0, df[shares].to_numpy().max() * 1.15)
+    ax.grid(axis="x", color=GRID, linewidth=0.8)
+    ax.set_axisbelow(True)
+    clean_axes(ax)
+    ax.legend(loc="lower right", frameon=False)
+
+    add_titles(fig, TITLE_03,
+               "Share of customers and of payments by RFM segment (recency × monetary, NTILE(5))",
+               "Source: Olist public dataset (Kaggle) · query: sql/03_rfm_segmentation.sql")
+    fig.subplots_adjust(left=0.2, right=0.95, top=0.83, bottom=0.12)
+    return save(fig, "03_rfm.png")
+
+
+CHARTS = [chart_revenue, chart_retention, chart_rfm]  # add one function per case as you go
 
 
 def main() -> int:

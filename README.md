@@ -14,7 +14,7 @@ I analyze it the way I would for a commercial team: every case starts with a bus
 | --- | --- | --- | --- | --- |
 | 1 | How did revenue, orders and average order value develop month by month? | CTE, `date_trunc`, `LAG` | [01](sql/01_revenue_dynamics.sql) | done |
 | 2 | Do customers come back after their first purchase? | Cohorts, retention matrix, `generate_series` | [02](sql/02_cohort_retention.sql) | done |
-| 3 | Which customer segments generate the revenue? | RFM, `NTILE` | [03](sql/03_rfm_segmentation.sql) | to do |
+| 3 | Which customer segments generate the revenue? | RFM (recency × monetary), `NTILE` | [03](sql/03_rfm_segmentation.sql) | done |
 | 4 | How much does a late delivery hurt the review score? | Joins, conditional aggregation | [04](sql/04_delivery_vs_reviews.sql) | to do |
 | 5 | Which categories form the revenue core, and which are unstable? | ABC/XYZ, cumulative share, coefficient of variation | [05](sql/05_abc_xyz_categories.sql) | to do |
 | 6 | Do 20% of sellers make 80% of the revenue? | Window functions, Pareto | [06](sql/06_seller_pareto.sql) | to do |
@@ -36,6 +36,14 @@ I analyze it the way I would for a commercial team: every case starts with a bus
 **Insight:** 97% of customers bought only once (90,557 of 93,358). In no cohort did more than 0.72% of customers buy again in any later month; even in the oldest cohort (January 2017) only 20 of 717 customers (2.8%) came back within a year. Customers who returned in a later month brought just 1.8% of revenue, so the growth in case 1 came almost entirely from new customers.
 
 **Recommendation:** Growth depends on new customers, and their number stopped growing in 2018 (case 1), so test a second-purchase incentive, such as a voucher sent with the delivery, as an A/B test against a control group, with month-1 retention as the success metric.
+
+### 3. RFM segmentation
+
+![RFM segments](images/03_rfm.png)
+
+**Insight:** Frequency is useless here because 97% of customers bought once, so the segments use only recency and monetary (what the customer paid, freight included), with NTILE(5) for each. VIP and Sleeping customers are a third of the base (32%) but bring 60% of all payments. Their average payment is almost the same (BRL 307 vs BRL 310); they differ only in recency: about 3 months versus more than a year since the last order. New customers are the second-largest group (23.5%) but bring only 10% of payments.
+
+**Recommendation:** Split the retention budget by segment: give VIP customers a second-purchase incentive right after delivery (the A/B test from case 2), run a win-back campaign for Sleeping customers, who are worth as much as VIP, and keep Lost customers on low-cost automated messages only.
 
 ## Data
 
@@ -81,7 +89,7 @@ sql-analytics-cases/
 └── README.md
 ```
 
-Status: case 2 of 6 done, cases 3–6 by December 2026
+Status: case 3 of 6 done, cases 4–6 by December 2026
 
 ## Author
 
