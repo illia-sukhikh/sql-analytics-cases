@@ -213,7 +213,116 @@ def chart_rfm(engine) -> Path:
     return save(fig, "03_rfm.png")
 
 
-CHARTS = [chart_revenue, chart_retention, chart_rfm]  # add one function per case as you go
+# ---------- Case 4. Delivery quality vs. review score ----------
+TITLE_04 = "A delay of just 1-3 days costs a full review star"
+
+
+def chart_delivery(engine) -> Path:
+    df = run_sql(engine, "04_delivery_vs_reviews.sql")
+    cols = ["orders_share_pct", "avg_review_score", "share_1_2_stars_pct"]
+    df[cols] = df[cols].astype(float)
+
+    fig, ax = plt.subplots(figsize=(10, 5.8))
+    colors = [BARS if status == "On time" else ACCENT for status in df["delivery_status"]]
+    ax.bar(range(len(df)), df["avg_review_score"], width=0.6, color=colors)
+    for x, (score, low) in enumerate(zip(df["avg_review_score"], df["share_1_2_stars_pct"])):
+        ax.text(x, score + 0.12, f"{score:.2f}", ha="center", fontsize=12, fontweight="bold", color=INK)
+        ax.text(x, score + 0.45, f"1-2 stars: {low:.0f}%", ha="center", fontsize=9, color=MUTED)
+
+    ax.set_xticks(range(len(df)), labels=[f"{status}\n{share:.1f}% of orders"
+                                          for status, share in zip(df["delivery_status"], df["orders_share_pct"])])
+    ax.set_ylim(0, 5.3)
+    ax.set_ylabel("Average review score (1-5)")
+    ax.grid(axis="y", color=GRID, linewidth=0.8)
+    ax.set_axisbelow(True)
+    clean_axes(ax)
+
+    add_titles(fig, TITLE_04,
+               "Average review score by delivery delay · late = delivered after the promised day",
+               "Source: Olist public dataset (Kaggle) · query: sql/04_delivery_vs_reviews.sql")
+    fig.subplots_adjust(left=0.08, right=0.97, top=0.83, bottom=0.15)
+    return save(fig, "04_delivery.png")
+
+
+# ---------- Case 5. ABC/XYZ analysis of product categories ----------
+TITLE_05 = "Nine stable categories (A + X) bring 55% of revenue"
+
+
+def chart_abc_xyz(engine) -> Path:
+    df = run_sql(engine, "05_abc_xyz_categories.sql")
+    df["revenue"] = df["revenue"].astype(float)
+    cells = df.groupby(["abc", "xyz"]).agg(categories=("category", "count"), revenue=("revenue", "sum"))
+    share = (100 * cells["revenue"] / df["revenue"].sum()).unstack(fill_value=0)
+    share = share.reindex(index=["A", "B", "C"], columns=["X", "Y", "Z"], fill_value=0)
+    counts = cells["categories"].unstack(fill_value=0).reindex(index=["A", "B", "C"], columns=["X", "Y", "Z"], fill_value=0)
+
+    fig, ax = plt.subplots(figsize=(10, 6.2))
+    ax.imshow(share.to_numpy(dtype=float), cmap="Blues", vmin=0, vmax=share.to_numpy().max(), aspect="auto")
+    for row, abc in enumerate(share.index):
+        for col, xyz in enumerate(share.columns):
+            value, n = share.loc[abc, xyz], counts.loc[abc, xyz]
+            color = "white" if value > 0.55 * share.to_numpy().max() else INK
+            ax.text(col, row - 0.08, f"{value:.1f}%", ha="center", va="center", fontsize=16, fontweight="bold", color=color)
+            ax.text(col, row + 0.22, f"{n} categor{'y' if n == 1 else 'ies'}", ha="center", va="center",
+                    fontsize=9.5, color=color)
+
+    ax.set_xticks(range(3), labels=["X\nstable, CV < 0.25", "Y\nCV 0.25-0.5", "Z\nunstable, CV >= 0.5"])
+    ax.set_yticks(range(3), labels=["A\ntop 80% of revenue", "B\nnext 15%", "C\nlast 5%"])
+    ax.xaxis.tick_top()
+    ax.set_xticks([0.5, 1.5], minor=True)
+    ax.set_yticks([0.5, 1.5], minor=True)
+    ax.grid(which="minor", color="white", linewidth=3)
+    ax.tick_params(which="both", length=0)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+    add_titles(fig, TITLE_05,
+               "Share of revenue by ABC class (revenue) and XYZ class (monthly demand variation) · Jan-Aug 2018",
+               "Source: Olist public dataset (Kaggle) · query: sql/05_abc_xyz_categories.sql")
+    fig.subplots_adjust(left=0.2, right=0.97, top=0.76, bottom=0.08)
+    return save(fig, "05_abc_xyz.png")
+
+
+# ---------- Case 6. Seller Pareto ----------
+def chart_pareto(engine) -> Path:
+    df = run_sql(engine, "06_seller_pareto.sql")
+    df[["seller_rank_pct", "cum_revenue_share_pct"]] = df[["seller_rank_pct", "cum_revenue_share_pct"]].astype(float)
+    at_20 = df.loc[df["seller_rank_pct"] <= 20].iloc[-1]          # the point where 20% of sellers are counted
+    half = df.loc[df["cum_revenue_share_pct"] >= 50].iloc[0]       # the first seller that reaches 50%
+    title = (f"20% of sellers make {at_20['cum_revenue_share_pct']:.0f}% of revenue, "
+             f"and {int(half['seller_rank'])} sellers make half of it")
+
+    fig, ax = plt.subplots(figsize=(10, 5.8))
+    ax.plot([0, 100], [0, 100], color=GRID, linewidth=1.2, linestyle="--")
+    ax.fill_between(df["seller_rank_pct"], df["cum_revenue_share_pct"], color=ACCENT, alpha=0.08)
+    ax.plot(df["seller_rank_pct"], df["cum_revenue_share_pct"], color=ACCENT, linewidth=2.5)
+    for point, label, offset in (
+            (at_20, f"{at_20['seller_rank_pct']:.0f}% of sellers → {at_20['cum_revenue_share_pct']:.1f}% of revenue", (14, -28)),
+            (half, f"{int(half['seller_rank'])} sellers ({half['seller_rank_pct']:.1f}%) → 50% of revenue", (16, -14))):
+        ax.scatter(point["seller_rank_pct"], point["cum_revenue_share_pct"], color=ACCENT, s=36, zorder=3)
+        ax.annotate(label, xy=(point["seller_rank_pct"], point["cum_revenue_share_pct"]), xytext=offset,
+                    textcoords="offset points", fontsize=10, color=INK)
+
+    ax.set_xlim(0, 100)
+    ax.set_ylim(0, 102)
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:.0f}%"))
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:.0f}%"))
+    ax.set_xlabel("Share of sellers, largest first")
+    ax.set_ylabel("Cumulative share of revenue")
+    ax.grid(color=GRID, linewidth=0.8)
+    ax.set_axisbelow(True)
+    clean_axes(ax)
+
+    add_titles(fig, title,
+               f"Sellers ranked by revenue · {len(df):,} sellers, delivered orders Jan 2017 - Aug 2018"
+               " · dashed = all sellers equal",
+               "Source: Olist public dataset (Kaggle) · query: sql/06_seller_pareto.sql")
+    fig.subplots_adjust(left=0.09, right=0.97, top=0.83, bottom=0.14)
+    return save(fig, "06_pareto.png")
+
+
+CHARTS = [chart_revenue, chart_retention, chart_rfm,
+          chart_delivery, chart_abc_xyz, chart_pareto]  # one function per case
 
 
 def main() -> int:
